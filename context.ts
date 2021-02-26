@@ -136,9 +136,12 @@ export class Context {
       typeof this.#body === 'string' ||
       this.#body instanceof Uint8Array ||
       this.#body instanceof Deno.Buffer ||
-      this.#body instanceof Deno.File
+      this.#body instanceof Deno.File ||
+      typeof (this.#body as Deno.Reader).read === 'function'
     ) {
       return this.#body;
+    } else if (this.#body instanceof ArrayBuffer) {
+      return new Uint8Array(this.#body);
     } else {
       try {
         return JSON.stringify(this.#body);
