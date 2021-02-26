@@ -1,4 +1,4 @@
-import { Middleware } from './application.ts';
+import { Middleware, Empty } from './application.ts';
 import { Context } from './context.ts';
 import { reduce } from './reduce.ts';
 
@@ -7,7 +7,7 @@ type Match = {
 } & {
   [key: string]: string;
 };
-type Handler = (ctx: Context, match: Match) => Promise<void> | void;
+type Handler = (ctx: Context, match: Match) => Empty;
 
 export class Router {
   #middlewares: Middleware[] = [];
@@ -50,16 +50,17 @@ export class Router {
       if (match) await handler(ctx, match);
     }
   };
-
-  routes = (): Middleware => async (ctx) => {
-    await reduce(this.#middlewares)(ctx);
-  };
-
   #match = (re: string | RegExp, str: string) => {
     const match = str.match(re);
     if (!match) return;
-
     const { groups = {} } = match;
     return { $: match.slice(1), ...groups } as Match;
   };
+
+  routes(): Middleware {
+    return async (ctx, next) => {
+      await next();
+      await reduce(this.#middlewares)(ctx);
+    };
+  }
 }
