@@ -126,12 +126,12 @@ export class Context {
   private async _flush() {
     if (this.#flushed) return;
 
-    this._response.body = this.#_body();
+    this._response.body = await this.#_body();
     await this.request.respond(this._response);
 
     this.#flushed = true;
   }
-  #_body = (): Response['body'] => {
+  #_body = async (): Promise<Response['body']> => {
     if (
       typeof this.#body === 'string' ||
       this.#body instanceof Uint8Array ||
@@ -142,6 +142,14 @@ export class Context {
       return this.#body;
     } else if (this.#body instanceof ArrayBuffer) {
       return new Uint8Array(this.#body);
+    } else if (typeof this.#body[Symbol.iterator] === 'function') {
+      return new Uint8Array(
+        [...this.#body].reduce((acc, val) => [...acc, ...val])
+      );
+    } else if (typeof this.#body[Symbol.asyncIterator] === 'function') {
+      const buf = [];
+      for await (const b of this.#body) buf.push(b);
+      return new Uint8Array(buf.reduce((acc, val) => [...acc, ...val]));
     } else {
       try {
         return JSON.stringify(this.#body);
