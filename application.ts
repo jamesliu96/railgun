@@ -30,7 +30,7 @@ export class Application {
   async listenTLS(options: HTTPSOptions, handler?: (server: Server) => Empty) {
     const server = new Server(Deno.listenTls(options));
     await handler?.(server);
-    for await (const req of server) this.#handleRequest(req);
+    for await (const req of server) this.#handleRequest(req, true);
     server.close();
   }
 
