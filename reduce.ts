@@ -4,7 +4,7 @@ import { Context } from './context.ts';
 export type ReducedMiddleware = (ctx: Context, next?: Next) => Empty;
 
 export const reduce = (middlewares: Middleware[]): ReducedMiddleware => (
-  context,
+  ctx,
   next
 ) => {
   let idx = -1;
@@ -14,7 +14,7 @@ export const reduce = (middlewares: Middleware[]): ReducedMiddleware => (
     const fn = i === middlewares.length ? next : middlewares[i];
     if (!fn) return;
     try {
-      await fn(context, dispatch.bind(null, i + 1));
+      await fn(ctx, dispatch.bind(null, i + 1));
     } catch (e) {
       throw e;
     }

@@ -2,10 +2,8 @@ import { Middleware, Empty } from './application.ts';
 import { Context } from './context.ts';
 import { reduce } from './reduce.ts';
 
-type Match = {
+type Match = Record<string, string> & {
   $: string[];
-} & {
-  [key: string]: string;
 };
 type Handler = (ctx: Context, match: Match) => Empty;
 
@@ -33,6 +31,9 @@ export class Router {
   delete(path: string | RegExp, handler: Handler) {
     return this.route('DELETE', path, handler);
   }
+  all(path: string | RegExp, handler: Handler) {
+    return this.route('*', path, handler);
+  }
 
   route(method: string, path: string | RegExp, handler: Handler) {
     this.#middlewares.push(this.#generate(method, path, handler));
@@ -43,12 +44,14 @@ export class Router {
     path: string | RegExp,
     handler: Handler
   ): Middleware => async (ctx, next) => {
-    await next();
-
-    if (method.toUpperCase() === ctx.method.toUpperCase()) {
+    if (method.toUpperCase() === ctx.method.toUpperCase() || method === '*') {
       const match = this.#match(path, ctx.pathname);
-      if (match) await handler(ctx, match);
+      if (match) {
+        await handler(ctx, match);
+        return;
+      }
     }
+    await next();
   };
   #match = (re: string | RegExp, str: string) => {
     const match = str.match(re);

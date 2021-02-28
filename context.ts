@@ -1,32 +1,42 @@
 import {
   ServerRequest,
   Response,
+  Status,
+  Cookie,
+  getCookies,
+  setCookie,
+  deleteCookie,
 } from 'https://deno.land/std@0.88.0/http/mod.ts';
 import { parse } from 'https://deno.land/std@0.88.0/node/querystring.ts';
 
 import { Application } from './application.ts';
 
 type Request = ServerRequest;
-type QueryString = ReturnType<typeof parse>;
 
 export class Context {
   protected readonly _response: Response = {
-    status: 404,
+    status: Status.NotFound,
     headers: new Headers(),
   };
 
   #URL;
 
+  #cookies = getCookies(this.request);
+
+  // deno-lint-ignore no-explicit-any
   #body: any;
   #flushed = false;
 
+  #decoder = new TextDecoder(this.charset);
+
   constructor(
     public readonly app: Application,
-    public readonly request: Request
+    public readonly request: Request,
+    public readonly secure = false
   ) {
-    try {
-      this.#URL = new URL(`http://${this.get('host')}${this.url}`);
-    } catch (e) {}
+    this.#URL = new URL(
+      `${secure ? 'https' : 'http'}://${this.get('host')}${this.url}`
+    );
   }
 
   // request
@@ -43,6 +53,38 @@ export class Context {
   get(name: string) {
     return this.request.headers.get(name);
   }
+  get cookies() {
+    return this.#cookies ?? {};
+  }
+  getCookie(name: string) {
+    return this.cookies[name];
+  }
+  get contentType() {
+    return this.get('content-type') ?? '';
+  }
+  get mediaType() {
+    return this.contentType.split(';').map((s) => s.trim())[0] ?? '';
+  }
+  get charset() {
+    return (
+      this.contentType
+        .split(';')
+        .map((s) => s.trim())
+        .find((s) => s.startsWith('charset'))
+        ?.split('=')[1]
+        ?.trim()
+        ?.match(/^"?(.+)"?$/)?.[1] ?? 'utf-8'
+    );
+  }
+  get boundary() {
+    return this.contentType
+      .split(';')
+      .map((s) => s.trim())
+      .find((s) => s.startsWith('boundary'))
+      ?.split('=')[1]
+      ?.trim()
+      ?.match(/^"?(.+)"?$/)?.[1];
+  }
   get method() {
     return this.request.method;
   }
@@ -51,9 +93,6 @@ export class Context {
   }
   get url() {
     return this.request.url;
-  }
-  get URL() {
-    return this.#URL;
   }
   get href() {
     return this.#URL?.href ?? '';
@@ -88,14 +127,28 @@ export class Context {
   get querystring() {
     return this.search.slice(1);
   }
-  get query(): QueryString {
+  get query() {
     return this.querystring ? parse(this.querystring) : {};
   }
   get hash() {
     return this.#URL?.hash ?? '';
   }
-  get payload() {
-    return this.request.body;
+  async arrayBuffer(): Promise<ArrayBuffer> {
+    return (await Deno.readAll(this.request.body)).buffer;
+  }
+  // deno-lint-ignore require-await
+  async formData(): Promise<FormData> {
+    // TODO
+    return new FormData();
+  }
+  async blob() {
+    return new Blob([await this.arrayBuffer()]);
+  }
+  async text() {
+    return this.#decoder.decode(await this.arrayBuffer());
+  }
+  async json() {
+    return JSON.parse(await this.text());
   }
 
   // response
@@ -109,6 +162,12 @@ export class Context {
   delete(name: string) {
     this._response.headers!.delete(name);
   }
+  setCookie(cookie: Cookie) {
+    setCookie(this._response, cookie);
+  }
+  deleteCookie(name: string) {
+    deleteCookie(this._response, name);
+  }
   get status() {
     return this._response.status;
   }
@@ -119,11 +178,11 @@ export class Context {
     return this.#body;
   }
   set body(body) {
-    if (this.status === 404) this.status = 200;
+    if (this.status !== Status.OK) this.status = Status.OK;
     this.#body = body;
   }
 
-  private async _flush() {
+  private async _respond() {
     if (this.#flushed) return;
 
     this._response.body = await this.#_body();
@@ -132,28 +191,36 @@ export class Context {
     this.#flushed = true;
   }
   #_body = async (): Promise<Response['body']> => {
+    if (typeof this.#body === 'undefined' || this.#body === null) return;
     if (
       typeof this.#body === 'string' ||
       this.#body instanceof Uint8Array ||
       this.#body instanceof Deno.Buffer ||
       this.#body instanceof Deno.File ||
-      typeof (this.#body as Deno.Reader).read === 'function'
+      ('read' in this.#body &&
+        typeof (this.#body as Deno.Reader).read === 'function')
     ) {
       return this.#body;
     } else if (this.#body instanceof ArrayBuffer) {
       return new Uint8Array(this.#body);
-    } else if (typeof this.#body[Symbol.iterator] === 'function') {
+    } else if (typeof this.#body === 'function') {
+      return await this.#body();
+    } else if (
+      Symbol.iterator in this.#body &&
+      typeof this.#body[Symbol.iterator] === 'function'
+    ) {
       return new Uint8Array(
         [...this.#body].reduce((acc, val) => [...acc, ...val])
       );
-    } else if (typeof this.#body[Symbol.asyncIterator] === 'function') {
+    } else if (
+      Symbol.asyncIterator in this.#body &&
+      typeof this.#body[Symbol.asyncIterator] === 'function'
+    ) {
       const buf = [];
       for await (const b of this.#body) buf.push(b);
       return new Uint8Array(buf.reduce((acc, val) => [...acc, ...val]));
     } else {
-      try {
-        return JSON.stringify(this.#body);
-      } catch (e) {}
+      return JSON.stringify(this.#body);
     }
   };
 }
