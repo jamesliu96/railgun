@@ -57,7 +57,7 @@ export class Router {
     const match = str.match(re);
     if (!match) return;
     const { groups = {} } = match;
-    return { $: match.slice(1), ...groups } as Match;
+    return { ...groups, $: match.slice(1) } as Match;
   };
 
   routes(): Middleware {
