@@ -38,14 +38,16 @@ export class Application {
     try {
       const ctx = new Context(this, req, secure);
       await reduce(this.#middlewares)(ctx);
-      // deno-lint-ignore ban-ts-comment
-      // @ts-ignore
-      await ctx._respond();
+      await ctx.respond();
     } catch (e) {
       console.error(e);
-      await req.respond({
-        status: 500,
-      });
+      try {
+        await req.respond({
+          status: 500,
+        });
+      } catch (e) {
+        console.error(e);
+      }
     }
   };
 }

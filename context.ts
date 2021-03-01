@@ -7,14 +7,24 @@ import {
   setCookie,
   deleteCookie,
 } from 'https://deno.land/std@0.88.0/http/mod.ts';
-import { parse } from 'https://deno.land/std@0.88.0/node/querystring.ts';
+import { MultipartReader } from 'https://deno.land/std@0.88.0/mime/mod.ts';
 
 import { Application } from './application.ts';
 
-type Request = ServerRequest;
+export const ContentType = 'content-type';
+
+export enum MediaType {
+  Text = 'text/plain',
+  JSON = 'application/json',
+  FormUrlencoded = 'application/x-www-form-urlencoded',
+  MultipartFormData = 'multipart/form-data',
+  OctetStream = 'application/octet-stream',
+}
+
+export const CharsetUtf8 = 'charset=utf-8';
 
 export class Context {
-  protected readonly _response: Response = {
+  readonly response: Response = {
     status: Status.NotFound,
     headers: new Headers(),
   };
@@ -25,14 +35,13 @@ export class Context {
 
   // deno-lint-ignore no-explicit-any
   #body: any;
-  #flushed = false;
 
   #decoder = new TextDecoder(this.charset);
 
   constructor(
-    public readonly app: Application,
-    public readonly request: Request,
-    public readonly secure = false
+    readonly app: Application,
+    readonly request: ServerRequest,
+    readonly secure = false
   ) {
     this.#URL = new URL(
       `${secure ? 'https' : 'http'}://${this.get('host')}${this.url}`
@@ -60,7 +69,7 @@ export class Context {
     return this.cookies[name];
   }
   get contentType() {
-    return this.get('content-type') ?? '';
+    return this.get(ContentType) ?? '';
   }
   get mediaType() {
     return this.contentType.split(';').map((s) => s.trim())[0] ?? '';
@@ -90,6 +99,12 @@ export class Context {
   }
   get proto() {
     return this.request.proto;
+  }
+  get protoMajor() {
+    return this.request.protoMajor;
+  }
+  get protoMinor() {
+    return this.request.protoMinor;
   }
   get url() {
     return this.request.url;
@@ -124,25 +139,20 @@ export class Context {
   get search() {
     return this.#URL?.search ?? '';
   }
-  get querystring() {
-    return this.search.slice(1);
-  }
   get query() {
-    return this.querystring ? parse(this.querystring) : {};
+    return new URLSearchParams(this.search);
+  }
+  get querystring() {
+    return this.query.toString();
   }
   get hash() {
     return this.#URL?.hash ?? '';
   }
-  async arrayBuffer(): Promise<ArrayBuffer> {
-    return (await Deno.readAll(this.request.body)).buffer;
+  get buffer() {
+    return this.request.body;
   }
-  // deno-lint-ignore require-await
-  async formData(): Promise<FormData> {
-    // TODO
-    return new FormData();
-  }
-  async blob() {
-    return new Blob([await this.arrayBuffer()]);
+  async arrayBuffer() {
+    return (await Deno.readAll(this.buffer)).buffer;
   }
   async text() {
     return this.#decoder.decode(await this.arrayBuffer());
@@ -150,29 +160,36 @@ export class Context {
   async json() {
     return JSON.parse(await this.text());
   }
+  async form() {
+    return new URLSearchParams(await this.text());
+  }
+  async formData() {
+    if (!this.boundary) throw new Error('missing boundary');
+    return await new MultipartReader(this.buffer, this.boundary).readForm();
+  }
 
   // response
 
   set(name: string, value: string) {
-    this._response.headers!.set(name, value);
+    this.response.headers?.set(name, value);
   }
   append(name: string, value: string) {
-    this._response.headers!.append(name, value);
+    this.response.headers?.append(name, value);
   }
   delete(name: string) {
-    this._response.headers!.delete(name);
+    this.response.headers?.delete(name);
   }
   setCookie(cookie: Cookie) {
-    setCookie(this._response, cookie);
+    setCookie(this.response, cookie);
   }
   deleteCookie(name: string) {
-    deleteCookie(this._response, name);
+    deleteCookie(this.response, name);
   }
   get status() {
-    return this._response.status;
+    return this.response.status;
   }
   set status(status) {
-    this._response.status = status;
+    this.response.status = status;
   }
   get body() {
     return this.#body;
@@ -182,45 +199,38 @@ export class Context {
     this.#body = body;
   }
 
-  private async _respond() {
-    if (this.#flushed) return;
-
-    this._response.body = await this.#_body();
-    await this.request.respond(this._response);
-
-    this.#flushed = true;
-  }
-  #_body = async (): Promise<Response['body']> => {
-    if (typeof this.#body === 'undefined' || this.#body === null) return;
-    if (
-      typeof this.#body === 'string' ||
-      this.#body instanceof Uint8Array ||
-      this.#body instanceof Deno.Buffer ||
-      this.#body instanceof Deno.File ||
-      ('read' in this.#body &&
-        typeof (this.#body as Deno.Reader).read === 'function')
-    ) {
-      return this.#body;
-    } else if (this.#body instanceof ArrayBuffer) {
-      return new Uint8Array(this.#body);
-    } else if (typeof this.#body === 'function') {
-      return await this.#body();
-    } else if (
-      Symbol.iterator in this.#body &&
-      typeof this.#body[Symbol.iterator] === 'function'
-    ) {
-      return new Uint8Array(
-        [...this.#body].reduce((acc, val) => [...acc, ...val])
-      );
-    } else if (
-      Symbol.asyncIterator in this.#body &&
-      typeof this.#body[Symbol.asyncIterator] === 'function'
-    ) {
-      const buf = [];
-      for await (const b of this.#body) buf.push(b);
-      return new Uint8Array(buf.reduce((acc, val) => [...acc, ...val]));
-    } else {
-      return JSON.stringify(this.#body);
+  async respond() {
+    const { type, body } = await this.#respond();
+    if (!this.response.headers?.get(ContentType)) {
+      this.set(ContentType, type);
     }
+    this.response.body = body;
+    await this.request.respond(this.response);
+  }
+  #respond = async () => {
+    let type = MediaType.OctetStream as string;
+    let body: Response['body'];
+    const b = await this.#body;
+    if (typeof b === 'string') {
+      type = `${MediaType.Text}`;
+      body = b;
+    } else if (
+      typeof b === 'undefined' ||
+      b instanceof Uint8Array ||
+      b instanceof Deno.Buffer ||
+      b instanceof Deno.File ||
+      ('read' in b && typeof (b as Deno.Reader).read === 'function')
+    ) {
+      body = b;
+    } else if (b instanceof ArrayBuffer) {
+      body = new Uint8Array(b);
+    } else if (b instanceof URLSearchParams) {
+      type = `${MediaType.FormUrlencoded}; ${CharsetUtf8}`;
+      body = b.toString();
+    } else {
+      type = `${MediaType.JSON}`;
+      body = JSON.stringify(b);
+    }
+    return { type, body };
   };
 }
