@@ -212,7 +212,7 @@ export class Context {
     let body: Response['body'];
     const b = await this.#body;
     if (typeof b === 'string') {
-      type = `${MediaType.Text}`;
+      type = MediaType.Text;
       body = b;
     } else if (
       typeof b === 'undefined' ||
@@ -225,10 +225,10 @@ export class Context {
     } else if (b instanceof ArrayBuffer) {
       body = new Uint8Array(b);
     } else if (b instanceof URLSearchParams) {
-      type = `${MediaType.FormUrlencoded}; ${CharsetUtf8}`;
+      type = MediaType.FormUrlencoded;
       body = b.toString();
     } else {
-      type = `${MediaType.JSON}`;
+      type = MediaType.JSON;
       body = JSON.stringify(b);
     }
     return { type, body };
