@@ -1,9 +1,10 @@
 import {
   Server,
-  ServerRequest,
   HTTPOptions,
   HTTPSOptions,
-} from 'https://deno.land/std@0.88.0/http/mod.ts';
+  ServerRequest,
+  Status,
+} from './deps.ts';
 
 import { Context } from './context.ts';
 import { reduce } from './reduce.ts';
@@ -43,7 +44,7 @@ export class Application {
       console.error(e);
       try {
         await req.respond({
-          status: 500,
+          status: Status.InternalServerError,
         });
       } catch (e) {
         console.error(e);

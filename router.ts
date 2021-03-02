@@ -1,67 +1,50 @@
-import { Status } from 'https://deno.land/std@0.88.0/http/mod.ts';
-
 import { Middleware, Empty } from './application.ts';
-import { Context } from './context.ts';
+import { Context, Method } from './context.ts';
 import { reduce } from './reduce.ts';
 
-type Match = Record<string, string> & {
+export type RouteMatch = Record<string, string> & {
   $: string[];
 };
-type Handler = (ctx: Context, match: Match) => Empty;
-
-export enum Method {
-  ALL = '*',
-  GET = 'GET',
-  POST = 'POST',
-  HEAD = 'HEAD',
-  OPTIONS = 'OPTIONS',
-  PUT = 'PUT',
-  PATCH = 'PATCH',
-  DELETE = 'DELETE',
-}
+export type RouteHandler = (ctx: Context, match: RouteMatch) => Empty;
 
 export class Router {
   #middlewares: Middleware[] = [];
-  #allowedMiddlewares: Middleware[] = [];
 
   constructor(readonly opts = { prefix: '' }) {}
 
-  all(path: string, handler: Handler) {
+  all(path: string, handler: RouteHandler) {
     return this.route(Method.ALL, path, handler);
   }
-  get(path: string, handler: Handler) {
+  get(path: string, handler: RouteHandler) {
     return this.route(Method.GET, path, handler);
   }
-  post(path: string, handler: Handler) {
+  post(path: string, handler: RouteHandler) {
     return this.route(Method.POST, path, handler);
   }
-  head(path: string, handler: Handler) {
+  head(path: string, handler: RouteHandler) {
     return this.route(Method.HEAD, path, handler);
   }
-  options(path: string, handler: Handler) {
+  options(path: string, handler: RouteHandler) {
     return this.route(Method.OPTIONS, path, handler);
   }
-  put(path: string, handler: Handler) {
+  put(path: string, handler: RouteHandler) {
     return this.route(Method.PUT, path, handler);
   }
-  patch(path: string, handler: Handler) {
+  patch(path: string, handler: RouteHandler) {
     return this.route(Method.PATCH, path, handler);
   }
-  delete(path: string, handler: Handler) {
+  delete(path: string, handler: RouteHandler) {
     return this.route(Method.DELETE, path, handler);
   }
 
-  route(method: string, path: string, handler: Handler) {
+  route(method: string, path: string, handler: RouteHandler) {
     this.#middlewares.push(this.#generate(method, path, handler));
-    this.#allowedMiddlewares.push(
-      this.#generate(Method.OPTIONS, path, this.#allowedHandler(method))
-    );
     return this;
   }
   #generate = (
     method: string,
     path: string,
-    handler: Handler
+    matchHander: RouteHandler
   ): Middleware => async (ctx, next) => {
     if (
       method === Method.ALL ||
@@ -69,7 +52,7 @@ export class Router {
     ) {
       const match = this.#match(path, ctx.pathname);
       if (match) {
-        await handler(ctx, match);
+        await matchHander(ctx, match);
         return;
       }
     }
@@ -79,36 +62,13 @@ export class Router {
     const match = str.match(this.opts.prefix + re);
     if (!match) return;
     const { groups = {} } = match;
-    return { ...groups, $: match.slice(1) } as Match;
-  };
-  #allowedHandler = (method: string): Handler => (ctx) => {
-    ctx.status = Status.OK;
-    ctx.set(
-      'allowed',
-      method === Method.ALL
-        ? '*'
-        : [
-            ...new Set(
-              ctx.response.headers
-                ?.get('allowed')
-                ?.split(',')
-                .map((s) => s.trim())
-            ).add(method),
-          ].join(', ')
-    );
+    return { ...groups, $: match.slice(1) } as RouteMatch;
   };
 
   routes(): Middleware {
     return async (ctx, next) => {
       await next();
       await reduce(this.#middlewares)(ctx);
-    };
-  }
-
-  allowedMethods(): Middleware {
-    return async (ctx, next) => {
-      await next();
-      await reduce(this.#allowedMiddlewares)(ctx);
     };
   }
 }

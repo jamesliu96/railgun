@@ -6,8 +6,8 @@ import {
   getCookies,
   setCookie,
   deleteCookie,
-} from 'https://deno.land/std@0.88.0/http/mod.ts';
-import { MultipartReader } from 'https://deno.land/std@0.88.0/mime/mod.ts';
+  MultipartReader,
+} from './deps.ts';
 
 import { Application } from './application.ts';
 
@@ -15,10 +15,22 @@ export const CONTENT_TYPE = 'content-type';
 
 export enum MediaType {
   Text = 'text/plain',
+  HTML = 'text/html',
   JSON = 'application/json',
   FormUrlencoded = 'application/x-www-form-urlencoded',
   MultipartFormData = 'multipart/form-data',
   OctetStream = 'application/octet-stream',
+}
+
+export enum Method {
+  ALL = '*',
+  GET = 'GET',
+  POST = 'POST',
+  HEAD = 'HEAD',
+  OPTIONS = 'OPTIONS',
+  PUT = 'PUT',
+  PATCH = 'PATCH',
+  DELETE = 'DELETE',
 }
 
 export class Context {
