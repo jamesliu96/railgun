@@ -8,7 +8,7 @@ export const reduce = (middlewares: Middleware[]): ReducedMiddleware => (
   next
 ) => {
   let idx = -1;
-  const dispatch = async (i: number): Promise<void> => {
+  const dispatch = async (i: number) => {
     if (i <= idx) throw new Error('next() called multiple times');
     idx = i;
     const fn = i === middlewares.length ? next : middlewares[i];

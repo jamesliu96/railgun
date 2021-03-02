@@ -11,7 +11,7 @@ import { MultipartReader } from 'https://deno.land/std@0.88.0/mime/mod.ts';
 
 import { Application } from './application.ts';
 
-export const ContentType = 'content-type';
+export const CONTENT_TYPE = 'content-type';
 
 export enum MediaType {
   Text = 'text/plain',
@@ -20,8 +20,6 @@ export enum MediaType {
   MultipartFormData = 'multipart/form-data',
   OctetStream = 'application/octet-stream',
 }
-
-export const CharsetUtf8 = 'charset=utf-8';
 
 export class Context {
   readonly response: Response = {
@@ -69,7 +67,7 @@ export class Context {
     return this.cookies[name];
   }
   get contentType() {
-    return this.get(ContentType) ?? '';
+    return this.get(CONTENT_TYPE) ?? '';
   }
   get mediaType() {
     return this.contentType.split(';').map((s) => s.trim())[0] ?? '';
@@ -201,14 +199,14 @@ export class Context {
 
   async respond() {
     const { type, body } = await this.#respond();
-    if (!this.response.headers?.get(ContentType)) {
-      this.set(ContentType, type);
+    if (!this.response.headers?.get(CONTENT_TYPE) && type) {
+      this.set(CONTENT_TYPE, type);
     }
     this.response.body = body;
     await this.request.respond(this.response);
   }
   #respond = async () => {
-    let type = MediaType.OctetStream as string;
+    let type: string | undefined;
     let body: Response['body'];
     const b = await this.#body;
     if (typeof b === 'string') {
