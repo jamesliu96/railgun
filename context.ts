@@ -22,6 +22,8 @@ export enum MediaType {
   OctetStream = 'application/octet-stream',
 }
 
+export const CHARSET_UTF8 = 'charset=utf-8';
+
 export enum Method {
   ALL = '*',
   GET = 'GET',
@@ -47,6 +49,9 @@ export class Context {
   #body: any;
 
   #decoder = new TextDecoder(this.charset);
+
+  #bufferRead = false;
+  #cachedBuffer?: ArrayBuffer;
 
   constructor(
     readonly app: Application,
@@ -162,7 +167,11 @@ export class Context {
     return this.request.body;
   }
   async arrayBuffer() {
-    return (await Deno.readAll(this.buffer)).buffer;
+    if (this.#cachedBuffer) return this.#cachedBuffer;
+    if (this.#bufferRead) throw new Error('buffer read but not cached');
+    this.#cachedBuffer = (await Deno.readAll(this.buffer)).buffer;
+    this.#bufferRead = true;
+    return this.#cachedBuffer;
   }
   async text() {
     return this.#decoder.decode(await this.arrayBuffer());
@@ -175,6 +184,12 @@ export class Context {
   }
   async formData() {
     if (!this.boundary) throw new Error('missing boundary');
+    if (this.#cachedBuffer)
+      return await new MultipartReader(
+        new Deno.Buffer(this.#cachedBuffer),
+        this.boundary
+      ).readForm();
+    if (this.#bufferRead) throw new Error('buffer read but not cached');
     return await new MultipartReader(this.buffer, this.boundary).readForm();
   }
 
@@ -222,7 +237,7 @@ export class Context {
     let body: Response['body'];
     const b = await this.#body;
     if (typeof b === 'string') {
-      type = MediaType.Text;
+      type = `${MediaType.Text}; ${CHARSET_UTF8}`;
       body = b;
     } else if (
       typeof b === 'undefined' ||
@@ -235,10 +250,10 @@ export class Context {
     } else if (b instanceof ArrayBuffer) {
       body = new Uint8Array(b);
     } else if (b instanceof URLSearchParams) {
-      type = MediaType.FormUrlencoded;
+      type = `${MediaType.FormUrlencoded}; ${CHARSET_UTF8}`;
       body = b.toString();
     } else {
-      type = MediaType.JSON;
+      type = `${MediaType.JSON}; ${CHARSET_UTF8}`;
       body = JSON.stringify(b);
     }
     return { type, body };

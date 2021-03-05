@@ -23,7 +23,7 @@ await app.listen({ port: 3000 });
 ## example
 
 ```ts
-import { Application, Router, Status, MediaType, CONTENT_TYPE } from './mod.ts';
+import { Application, Router, Status, MediaType, CONTENT_TYPE } from 'https://deno.land/x/railgun/mod.ts';
 
 const app = new Application();
 const router = new Router();
@@ -36,7 +36,13 @@ await app
   })
   .use(
     router
-      .get('/', (ctx) => {
+      .get('/meow/(?<catName>.+)', (ctx, { catName }) => {
+        ctx.body = `my name is ${decodeURIComponent(catName)}, meow! 🐱`;
+      })
+      .post('/teapot', (ctx) => {
+        ctx.status = Status.Teapot;
+      })
+      .all('/', (ctx) => {
         ctx.set(CONTENT_TYPE, MediaType.HTML);
         ctx.body = `<html>
 <head>
@@ -47,9 +53,6 @@ await app
 </body>
 </html>
 `;
-      })
-      .post('/teapot', (ctx) => {
-        ctx.status = Status.Teapot;
       })
       .routes()
   )
