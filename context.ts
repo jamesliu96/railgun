@@ -190,6 +190,7 @@ export class Context {
         this.boundary
       ).readForm();
     if (this.#bufferRead) throw new Error('buffer read but not cached');
+    this.#bufferRead = true;
     return await new MultipartReader(this.buffer, this.boundary).readForm();
   }
 
