@@ -16,6 +16,8 @@ export const CONTENT_TYPE = 'content-type';
 export enum MediaType {
   Text = 'text/plain',
   HTML = 'text/html',
+  JavaScript = 'text/javascript',
+  CSS = 'text/css',
   JSON = 'application/json',
   FormUrlencoded = 'application/x-www-form-urlencoded',
   MultipartFormData = 'multipart/form-data',
