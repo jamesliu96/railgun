@@ -7,6 +7,8 @@ import {
   setCookie,
   deleteCookie,
   MultipartReader,
+  Buffer,
+  readAll,
 } from './deps.ts';
 
 import { Application } from './application.ts';
@@ -45,7 +47,7 @@ export class Context {
 
   #URL;
 
-  #cookies = getCookies(this.request);
+  #cookies: ReturnType<typeof getCookies>;
 
   // deno-lint-ignore no-explicit-any
   #body: any;
@@ -63,6 +65,7 @@ export class Context {
     this.#URL = new URL(
       `${secure ? 'https' : 'http'}://${this.get('host')}${this.url}`
     );
+    this.#cookies = getCookies(this.request);
   }
 
   // request
@@ -171,7 +174,7 @@ export class Context {
   async arrayBuffer() {
     if (this.#cachedBuffer) return this.#cachedBuffer;
     if (this.#bufferRead) throw new Error('buffer read but not cached');
-    this.#cachedBuffer = (await Deno.readAll(this.buffer)).buffer;
+    this.#cachedBuffer = (await readAll(this.buffer)).buffer;
     this.#bufferRead = true;
     return this.#cachedBuffer;
   }
@@ -188,7 +191,7 @@ export class Context {
     if (!this.boundary) throw new Error('missing boundary');
     if (this.#cachedBuffer)
       return await new MultipartReader(
-        new Deno.Buffer(this.#cachedBuffer),
+        new Buffer(this.#cachedBuffer),
         this.boundary
       ).readForm();
     if (this.#bufferRead) throw new Error('buffer read but not cached');
@@ -245,7 +248,7 @@ export class Context {
     } else if (
       typeof b === 'undefined' ||
       b instanceof Uint8Array ||
-      b instanceof Deno.Buffer ||
+      b instanceof Buffer ||
       b instanceof Deno.File ||
       ('read' in b && typeof (b as Deno.Reader).read === 'function')
     ) {
