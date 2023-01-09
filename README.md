@@ -45,6 +45,9 @@ await new Application()
         form.set('text', text);
         ctx.body = form;
       })
+      .post('/echo_json', async (ctx) => {
+        ctx.body = await ctx.reqtest.json();
+      })
       .handle()
   )
   .use(
