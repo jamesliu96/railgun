@@ -4,5 +4,5 @@ export {
   getCookies,
   setCookie,
   deleteCookie,
-} from 'https://deno.land/std@0.143.0/http/mod.ts';
-export type { Cookie } from 'https://deno.land/std@0.143.0/http/mod.ts';
+} from 'https://deno.land/std@0.171.0/http/mod.ts';
+export type { Cookie } from 'https://deno.land/std@0.171.0/http/mod.ts';
