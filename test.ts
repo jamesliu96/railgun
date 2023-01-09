@@ -1,35 +1,4 @@
-# railgun
-
-[![deno doc](https://doc.deno.land/badge.svg)](https://doc.deno.land/https/deno.land/x/railgun/mod.ts)
-
-deno web server framework
-
-available features:
-
-- middlewares
-- context
-- router
-
-## usage
-
-```ts
-import { Application } from 'https://deno.land/x/railgun/mod.ts';
-
-const app = new Application();
-
-await app.listen({ port: 3000 });
-```
-
-## example
-
-```ts
-import {
-  Application,
-  Router,
-  Status,
-  MediaType,
-  CONTENT_TYPE,
-} from 'https://deno.land/x/railgun/mod.ts';
+import { Application, Router, Status, MediaType, CONTENT_TYPE } from './mod.ts';
 
 await new Application()
   .use(async (ctx, next) => {
@@ -83,4 +52,3 @@ await new Application()
       },
     }
   );
-```
