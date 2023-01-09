@@ -21,7 +21,7 @@ export type RouteHandler = (ctx: Context, match: RouteMatch) => Empty;
 export class Router {
   routes = new Map<string, Middleware>();
 
-  constructor(readonly opts = { prefix: '' }) {}
+  constructor(readonly prefix = '') {}
 
   all(path: string, handler: RouteHandler) {
     return this.route(Method.ALL, path, handler);
@@ -65,7 +65,7 @@ export class Router {
       await next();
     };
   #match = (re: string, str: string) => {
-    const match = str.match(this.opts.prefix + re);
+    const match = str.match(this.prefix + re);
     if (!match) return;
     const { groups = {} } = match;
     return { ...groups, $: match.slice(1) } as RouteMatch;

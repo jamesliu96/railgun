@@ -38,7 +38,7 @@ await new Application()
     console.log(`${ctx.request.method} ${ctx.URL} - ${Date.now() - start}ms`);
   })
   .use(
-    new Router({ prefix: '/api/v1' })
+    new Router('/api/v1')
       .post('/echo_text', async (ctx) => {
         const form = new FormData();
         const text = await ctx.request.text();
