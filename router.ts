@@ -1,8 +1,7 @@
-import { Empty, Middleware } from './application.ts';
+import { Empty, Middleware, reduce } from './middleware.ts';
 import { Context } from './context.ts';
-import { reduce } from './reduce.ts';
 
-export enum Method {
+enum Method {
   ALL = '*',
   GET = 'GET',
   POST = 'POST',
@@ -13,63 +12,67 @@ export enum Method {
   HEAD = 'HEAD',
 }
 
-export type RouteMatch = Record<string, string> & {
+type RouteMatch = Record<string, string> & {
   $: string[];
 };
-export type RouteHandler = (ctx: Context, match: RouteMatch) => Empty;
+type RouteHandler = (ctx: Context, match: RouteMatch) => Empty;
 
 export class Router {
+  static Method = Method;
+
   routes = new Map<string, Middleware>();
 
   constructor(readonly prefix = '') {}
 
   all(path: string, handler: RouteHandler) {
-    return this.route(Method.ALL, path, handler);
+    return this.route(Router.Method.ALL, path, handler);
   }
   get(path: string, handler: RouteHandler) {
-    return this.route(Method.GET, path, handler);
+    return this.route(Router.Method.GET, path, handler);
   }
   post(path: string, handler: RouteHandler) {
-    return this.route(Method.POST, path, handler);
+    return this.route(Router.Method.POST, path, handler);
   }
   delete(path: string, handler: RouteHandler) {
-    return this.route(Method.DELETE, path, handler);
+    return this.route(Router.Method.DELETE, path, handler);
   }
   patch(path: string, handler: RouteHandler) {
-    return this.route(Method.PATCH, path, handler);
+    return this.route(Router.Method.PATCH, path, handler);
   }
   put(path: string, handler: RouteHandler) {
-    return this.route(Method.PUT, path, handler);
+    return this.route(Router.Method.PUT, path, handler);
   }
   options(path: string, handler: RouteHandler) {
-    return this.route(Method.OPTIONS, path, handler);
+    return this.route(Router.Method.OPTIONS, path, handler);
   }
   head(path: string, handler: RouteHandler) {
-    return this.route(Method.HEAD, path, handler);
+    return this.route(Router.Method.HEAD, path, handler);
   }
 
   route(method: string, path: string, handler: RouteHandler) {
-    this.routes.set(`${method} ${path}`, this.#route(method, path, handler));
+    const pathname = `${this.prefix}${path}`;
+    this.routes.set(
+      `${method} ${pathname}`,
+      this.#route(method, pathname, handler)
+    );
     return this;
   }
-  #route =
-    (method: string, path: string, handler: RouteHandler): Middleware =>
-    async (ctx, next) => {
+  #route(method: string, pathname: string, handler: RouteHandler): Middleware {
+    return async (ctx, next) => {
       if (
         method === Method.ALL ||
         ctx.request.method.toUpperCase() === method.toUpperCase()
       ) {
-        const match = this.#match(path, ctx.URL.pathname);
-        if (match) return await handler(ctx, match);
+        const match = ctx.URL.pathname.match(`^${pathname}$`);
+        if (match)
+          return await handler(ctx, {
+            ...match.groups,
+            $: match.slice(1),
+          } as RouteMatch);
       }
       await next();
     };
-  #match = (re: string, str: string) => {
-    const match = str.match(this.prefix + re);
-    if (!match) return;
-    const { groups = {} } = match;
-    return { ...groups, $: match.slice(1) } as RouteMatch;
-  };
+  }
 
   handle(): Middleware {
     return async (ctx, next) => {

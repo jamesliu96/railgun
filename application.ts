@@ -1,13 +1,9 @@
 import { Status, STATUS_TEXT } from './deps.ts';
 
+import { Empty, Middleware, reduce } from './middleware.ts';
 import { Context } from './context.ts';
-import { reduce } from './reduce.ts';
 
-export type Empty = Promise<void> | void;
-export type Next = () => Empty;
-export type Middleware = (ctx: Context, next: Next) => Empty;
-
-export type Handlers = {
+type Handlers = {
   onListen?: (listener: Deno.Listener) => Empty;
 
   onFulfilled?: () => Empty;
@@ -25,28 +21,37 @@ export class Application {
 
   async listen(options: Deno.ListenOptions, handlers?: Handlers) {
     const listener = Deno.listen(options);
-    handlers?.onListen?.(listener);
-    for await (const conn of listener) await this.#serve(conn, handlers);
+    await handlers?.onListen?.(listener);
+    await this.#serve(listener, handlers);
   }
 
   async listenTls(options: Deno.ListenTlsOptions, handlers?: Handlers) {
     const listener = Deno.listenTls(options);
-    handlers?.onListen?.(listener);
-    for await (const conn of listener) await this.#serve(conn, handlers);
+    await handlers?.onListen?.(listener);
+    await this.#serve(listener, handlers);
   }
 
-  #serve = async (conn: Deno.Conn, handlers?: Handlers) => {
-    for await (const requestEvent of Deno.serveHttp(conn))
-      this.#handle(requestEvent)
-        .then(handlers?.onFulfilled)
-        .catch(handlers?.onRejected ?? console.error)
-        .finally(handlers?.onFinally);
-  };
-  #handle = async (requestEvent: Deno.RequestEvent) => {
+  async #serve(listener: Deno.Listener, handlers?: Handlers) {
+    try {
+      for await (const conn of listener)
+        try {
+          for await (const requestEvent of Deno.serveHttp(conn))
+            this.#handle(requestEvent)
+              .then(handlers?.onFulfilled)
+              .catch(handlers?.onRejected ?? console.error)
+              .finally(handlers?.onFinally);
+        } catch (err) {
+          console.error(err);
+        }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  async #handle(requestEvent: Deno.RequestEvent) {
     try {
       const ctx = new Context(requestEvent.request);
       await reduce([...this.middlewares])(ctx);
-      await requestEvent.respondWith(ctx.response);
+      await requestEvent.respondWith(await ctx._respond());
     } catch (err) {
       await requestEvent.respondWith(
         new Response(null, {
@@ -56,5 +61,5 @@ export class Application {
       );
       throw err;
     }
-  };
+  }
 }

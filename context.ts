@@ -1,27 +1,20 @@
 import {
   Status,
-  Cookie,
+  STATUS_TEXT,
+  contentType,
+  readAll,
   getCookies,
+  getSetCookies,
   setCookie,
   deleteCookie,
-  STATUS_TEXT,
+  Cookie,
 } from './deps.ts';
 
-export const CONTENT_TYPE = 'content-type';
-export const CHARSET_UTF8 = 'charset=utf-8';
-
-export enum MediaType {
-  Text = 'text/plain',
-  HTML = 'text/html',
-  JavaScript = 'text/javascript',
-  CSS = 'text/css',
-  JSON = 'application/json',
-  FormUrlencoded = 'application/x-www-form-urlencoded',
-  MultipartFormData = 'multipart/form-data',
-  OctetStream = 'application/octet-stream',
-}
+type ContentType = Parameters<typeof contentType>[0];
 
 export class Context {
+  static #CONTENT_TYPE = 'content-type';
+
   readonly URL;
   readonly cookies;
 
@@ -30,6 +23,8 @@ export class Context {
     this.URL = new URL(url);
     this.cookies = new Map(Object.entries(getCookies(headers)));
   }
+
+  response?: Response;
 
   #status?: Status;
   get status(): Status | undefined {
@@ -49,11 +44,23 @@ export class Context {
   }
 
   headers = new Headers();
-  setCookie(cookie: Cookie) {
+  get setCookies() {
+    return getSetCookies(this.headers);
+  }
+  set cookie(cookie: Cookie) {
     setCookie(this.headers, cookie);
   }
   deleteCookie(name: string) {
     deleteCookie(this.headers, name);
+  }
+  get contentType() {
+    return this.headers.get(Context.#CONTENT_TYPE) as ContentType;
+  }
+  set contentType(type) {
+    this.headers.set(Context.#CONTENT_TYPE, contentType(type) ?? type);
+  }
+  deleteContentType() {
+    this.headers.delete(Context.#CONTENT_TYPE);
   }
 
   #body: unknown;
@@ -66,33 +73,39 @@ export class Context {
     this.#bodySet = true;
   }
 
-  get response() {
-    let type: string | undefined;
+  async _respond() {
+    if (this.response) {
+      return this.response;
+    }
+    let type: ContentType | undefined;
     let body: BodyInit | null | undefined;
-    if (
-      typeof this.body === 'undefined' ||
-      this.body === null ||
+    if (typeof this.body === 'undefined' || this.body === null)
+      body = this.body;
+    else if (this.body instanceof Deno.FsFile) {
+      type = 'application/octet-stream';
+      body = await readAll(this.body);
+    } else if (
       this.body instanceof Blob ||
       this.body instanceof ArrayBuffer ||
       ArrayBuffer.isView(this.body) ||
       this.body instanceof ReadableStream
-    )
+    ) {
+      type = 'application/octet-stream';
       body = this.body;
-    else if (typeof this.body === 'string') {
-      type = `${MediaType.Text}; ${CHARSET_UTF8}`;
+    } else if (typeof this.body === 'string') {
+      type = 'text/plain';
       body = this.body;
     } else if (this.body instanceof FormData) {
-      type = `${MediaType.MultipartFormData}; ${CHARSET_UTF8}`;
+      type = 'multipart/form-data';
       body = this.body;
     } else if (this.body instanceof URLSearchParams) {
-      type = `${MediaType.FormUrlencoded}; ${CHARSET_UTF8}`;
+      type = 'application/x-www-form-urlencoded';
       body = this.body;
     } else {
-      type = `${MediaType.JSON}; ${CHARSET_UTF8}`;
+      type = 'application/json';
       body = JSON.stringify(this.body);
     }
-    if (!this.headers.get(CONTENT_TYPE) && type)
-      this.headers.set(CONTENT_TYPE, type);
+    if (type) if (!this.contentType) this.contentType = type;
     return new Response(body, {
       status: this.status,
       statusText: this.statusText,
