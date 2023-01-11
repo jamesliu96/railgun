@@ -2,9 +2,10 @@ import { Context } from './context.ts';
 
 export type Empty = Promise<void> | void;
 export type Middleware = (ctx: Context, next: () => Empty) => Empty;
+export type ReducedMiddleware = (ctx: Context, next?: () => Empty) => Empty;
 
 export const reduce =
-  (middlewares: Middleware[]): ((ctx: Context, next?: () => Empty) => Empty) =>
+  (middlewares: Middleware[]): ReducedMiddleware =>
   (ctx, next) => {
     let idx = -1;
     const dispatch = async (i: number) => {

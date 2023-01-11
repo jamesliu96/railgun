@@ -2,7 +2,6 @@ import {
   Status,
   STATUS_TEXT,
   contentType,
-  readAll,
   getCookies,
   getSetCookies,
   setCookie,
@@ -26,13 +25,19 @@ export class Context {
 
   response?: Response;
 
+  body: unknown;
+
   #status?: Status;
   get status(): Status | undefined {
-    return this.#status ?? (this.#bodySet ? Status.OK : Status.NotFound);
+    return (
+      this.#status ??
+      (typeof this.body === 'undefined' ? Status.NotFound : Status.OK)
+    );
   }
   set status(status) {
     this.#status = status;
   }
+
   #statusText?: string;
   get statusText(): string | undefined {
     return (
@@ -63,27 +68,20 @@ export class Context {
     this.headers.delete(Context.#CONTENT_TYPE);
   }
 
-  #body: unknown;
-  #bodySet = false;
-  get body() {
-    return this.#body;
-  }
-  set body(body) {
-    this.#body = body;
-    this.#bodySet = true;
-  }
-
-  async _respond() {
+  async _response() {
     if (this.response) {
       return this.response;
     }
     let type: ContentType | undefined;
     let body: BodyInit | null | undefined;
-    if (typeof this.body === 'undefined' || this.body === null)
+    if (this.body instanceof Promise) {
+      this.body = await this.body;
+    }
+    if (typeof this.body === 'undefined' || this.body === null) {
       body = this.body;
-    else if (this.body instanceof Deno.FsFile) {
+    } else if (this.body instanceof Deno.FsFile) {
       type = 'application/octet-stream';
-      body = await readAll(this.body);
+      body = this.body.readable;
     } else if (
       this.body instanceof Blob ||
       this.body instanceof ArrayBuffer ||
@@ -105,7 +103,7 @@ export class Context {
       type = 'application/json';
       body = JSON.stringify(this.body);
     }
-    if (type) if (!this.contentType) this.contentType = type;
+    if (type && !this.contentType) this.contentType = type;
     return new Response(body, {
       status: this.status,
       statusText: this.statusText,

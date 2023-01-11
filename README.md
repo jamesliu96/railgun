@@ -6,9 +6,10 @@ deno web server framework
 
 available features:
 
-- middlewares
+- middleware
 - context
 - router
+- ...
 
 ## usage
 
@@ -43,7 +44,7 @@ await app.listen({ port: 3000 });
 `server.ts`
 
 ```ts
-import { Application, Router, Status } from './mod.ts';
+import { Application, Router, Status } from 'https://deno.land/x/railgun/mod.ts';
 
 await new Application()
   .use(async (ctx, next) => {
@@ -57,17 +58,17 @@ await new Application()
   })
   .use(
     new Router('/api/v1')
-      .post('/echo', async (ctx) => {
-        ctx.body = await ctx.request.text();
+      .post('/echo', (ctx) => {
+        ctx.body = ctx.request.text();
       })
-      .post('/echo.json', async (ctx) => {
-        ctx.body = await ctx.request.json();
+      .post('/echo.json', (ctx) => {
+        ctx.body = ctx.request.json();
       })
       .handle()
   )
   .use(
     new Router()
-      .get('/meow/(?<catName>.+)', (ctx, { catName }) => {
+      .get('/meow/(?<catName>.+)', (ctx, { catName = '' }) => {
         ctx.body = `my name is ${decodeURIComponent(catName)}, meow! 🐱`;
       })
       .post('/teapot', (ctx) => {
@@ -86,20 +87,16 @@ await new Application()
         ctx.body = await Deno.open(await Deno.realPath('./README.md'));
       })
       .all('/ws', (ctx) => {
-        const { socket, response } = Deno.upgradeWebSocket(ctx.request);
+        const { response, socket } = Deno.upgradeWebSocket(ctx.request);
+        ctx.response = response;
         socket.onopen = () => {
           socket.send('Hello World!');
         };
-        socket.onmessage = (e) => {
-          console.log(e.data);
-          socket.close();
+        socket.onmessage = ({ data }) => {
+          socket.send(data);
         };
-        socket.onclose = () => console.log('WebSocket has been closed.');
-        socket.onerror = (e) => console.error('WebSocket error:', e);
-        ctx.response = response;
       })
       .all('/', (ctx) => {
-        console.warn('in');
         ctx.contentType = 'text/html';
         ctx.body = `<html>
 <head>

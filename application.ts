@@ -1,14 +1,15 @@
 import { Status, STATUS_TEXT } from './deps.ts';
 
-import { Empty, Middleware, reduce } from './middleware.ts';
+import { Empty, Middleware, ReducedMiddleware, reduce } from './middleware.ts';
 import { Context } from './context.ts';
 
 type Handlers = {
   onListen?: (listener: Deno.Listener) => Empty;
-
-  onFulfilled?: () => Empty;
-  onRejected?: (err: Error) => Empty;
-  onFinally?: () => Empty;
+  onListenError?: (err: Error) => Empty;
+  onServe?: (conn: Deno.Conn) => Empty;
+  onServeError?: (err: Error) => Empty;
+  onRespond?: (requestEvent: Deno.RequestEvent) => Empty;
+  onRespondError?: (err: Error) => Empty;
 };
 
 export class Application {
@@ -19,47 +20,56 @@ export class Application {
     return this;
   }
 
-  async listen(options: Deno.ListenOptions, handlers?: Handlers) {
-    const listener = Deno.listen(options);
-    await handlers?.onListen?.(listener);
-    await this.#serve(listener, handlers);
+  listen(options: Deno.ListenOptions, handlers?: Handlers) {
+    return this.#listen(Deno.listen(options), handlers);
   }
 
-  async listenTls(options: Deno.ListenTlsOptions, handlers?: Handlers) {
-    const listener = Deno.listenTls(options);
-    await handlers?.onListen?.(listener);
-    await this.#serve(listener, handlers);
+  listenTls(options: Deno.ListenTlsOptions, handlers?: Handlers) {
+    return this.#listen(Deno.listenTls(options), handlers);
   }
 
-  async #serve(listener: Deno.Listener, handlers?: Handlers) {
+  async #listen(listener: Deno.Listener, handlers?: Handlers) {
     try {
+      handlers?.onListen?.(listener);
       for await (const conn of listener)
-        try {
-          for await (const requestEvent of Deno.serveHttp(conn))
-            this.#handle(requestEvent)
-              .then(handlers?.onFulfilled)
-              .catch(handlers?.onRejected ?? console.error)
-              .finally(handlers?.onFinally);
-        } catch (err) {
-          console.error(err);
-        }
+        this.#serve(conn, reduce([...this.middlewares]), handlers);
     } catch (err) {
-      console.error(err);
+      handlers?.onListenError?.(err);
     }
   }
-  async #handle(requestEvent: Deno.RequestEvent) {
+
+  async #serve(
+    conn: Deno.Conn,
+    reduced: ReducedMiddleware,
+    handlers?: Handlers
+  ) {
     try {
-      const ctx = new Context(requestEvent.request);
-      await reduce([...this.middlewares])(ctx);
-      await requestEvent.respondWith(await ctx._respond());
+      handlers?.onServe?.(conn);
+      for await (const requestEvent of Deno.serveHttp(conn))
+        this.#respond(requestEvent, reduced, handlers);
     } catch (err) {
+      handlers?.onServeError?.(err);
+    }
+  }
+
+  async #respond(
+    requestEvent: Deno.RequestEvent,
+    reduced: ReducedMiddleware,
+    handlers?: Handlers
+  ) {
+    try {
+      handlers?.onRespond?.(requestEvent);
+      const ctx = new Context(requestEvent.request);
+      await reduced(ctx);
+      await requestEvent.respondWith(await ctx._response());
+    } catch (err) {
+      handlers?.onRespondError?.(err);
       await requestEvent.respondWith(
         new Response(null, {
           status: Status.InternalServerError,
           statusText: STATUS_TEXT[Status.InternalServerError],
         })
       );
-      throw err;
     }
   }
 }
