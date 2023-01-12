@@ -1,15 +1,15 @@
 import { Status, STATUS_TEXT } from './deps.ts';
 
-import { Empty, Middleware, ReducedMiddleware, reduce } from './middleware.ts';
+import { Middleware, ReducedMiddleware, reduce } from './middleware.ts';
 import { Context } from './context.ts';
 
 type Handlers = {
-  onListen?: (listener: Deno.Listener) => Empty;
-  onListenError?: (err: Error) => Empty;
-  onServe?: (conn: Deno.Conn) => Empty;
-  onServeError?: (err: Error) => Empty;
-  onRespond?: (requestEvent: Deno.RequestEvent) => Empty;
-  onRespondError?: (err: Error) => Empty;
+  onListen?: (listener: Deno.Listener) => void;
+  onListenError?: (err: Error) => void;
+  onServe?: (conn: Deno.Conn) => void;
+  onServeError?: (err: Error) => void;
+  onRespond?: (requestEvent: Deno.RequestEvent) => void;
+  onRespondError?: (err: Error) => void;
 };
 
 export class Application {
@@ -17,6 +17,11 @@ export class Application {
 
   use(middleware: Middleware) {
     this.middlewares.add(middleware);
+    return this;
+  }
+
+  unuse(middleware: Middleware) {
+    this.middlewares.delete(middleware);
     return this;
   }
 
@@ -61,10 +66,10 @@ export class Application {
       handlers?.onRespond?.(requestEvent);
       const ctx = new Context(requestEvent.request);
       await reduced(ctx);
-      await requestEvent.respondWith(await ctx._response());
+      await requestEvent.respondWith(ctx.response);
     } catch (err) {
       handlers?.onRespondError?.(err);
-      await requestEvent.respondWith(
+      requestEvent.respondWith(
         new Response(null, {
           status: Status.InternalServerError,
           statusText: STATUS_TEXT[Status.InternalServerError],

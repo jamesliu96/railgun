@@ -23,26 +23,16 @@ export class Context {
     this.cookies = new Map(Object.entries(getCookies(headers)));
   }
 
-  response?: Response;
-
-  body: unknown;
-
   #status?: Status;
-  get status(): Status | undefined {
-    return (
-      this.#status ??
-      (typeof this.body === 'undefined' ? Status.NotFound : Status.OK)
-    );
+  get status() {
+    return this.response.status as Status;
   }
   set status(status) {
     this.#status = status;
   }
-
   #statusText?: string;
-  get statusText(): string | undefined {
-    return (
-      this.#statusText ?? (this.status ? STATUS_TEXT[this.status] : undefined)
-    );
+  get statusText() {
+    return this.response.statusText;
   }
   set statusText(statusText) {
     this.#statusText = statusText;
@@ -68,15 +58,21 @@ export class Context {
     this.headers.delete(Context.#CONTENT_TYPE);
   }
 
-  async _response() {
-    if (this.response) {
-      return this.response;
+  body: unknown;
+
+  #response?: Response;
+  get response() {
+    if (this.#response) {
+      return this.#response;
     }
+    return this.#render();
+  }
+  set response(response) {
+    this.#response = response;
+  }
+  #render() {
     let type: ContentType | undefined;
     let body: BodyInit | null | undefined;
-    if (this.body instanceof Promise) {
-      this.body = await this.body;
-    }
     if (typeof this.body === 'undefined' || this.body === null) {
       body = this.body;
     } else if (this.body instanceof Deno.FsFile) {
@@ -104,9 +100,15 @@ export class Context {
       body = JSON.stringify(this.body);
     }
     if (type && !this.contentType) this.contentType = type;
+    const status =
+      this.#status ??
+      (typeof body === 'undefined' || body === null
+        ? Status.NotFound
+        : Status.OK);
+    const statusText = this.#statusText ?? STATUS_TEXT[status];
     return new Response(body, {
-      status: this.status,
-      statusText: this.statusText,
+      status,
+      statusText,
       headers: this.headers,
     });
   }

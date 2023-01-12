@@ -14,37 +14,11 @@ available features:
 ## usage
 
 ```ts
-import { Application, Router } from 'https://deno.land/x/railgun/mod.ts';
-
-const app = new Application();
-
-app
-  .use(async (ctx, next) => {
-    const start = performance.now();
-    await next();
-    console.log(
-      `[${ctx.status}] ${ctx.request.method} ${ctx.URL.pathname} - ${
-        performance.now() - start
-      }ms`
-    );
-  })
-  .use(
-    new Router('/api/v1')
-      .post('/echo', async (ctx) => {
-        ctx.body = await ctx.request.blob();
-      })
-      .handle()
-  );
-
-await app.listen({ port: 3000 });
-```
-
-## example
-
-`server.ts`
-
-```ts
-import { Application, Router, Status } from 'https://deno.land/x/railgun/mod.ts';
+import {
+  Application,
+  Router,
+  Status,
+} from 'https://deno.land/x/railgun/mod.ts';
 
 await new Application()
   .use(async (ctx, next) => {
@@ -58,11 +32,11 @@ await new Application()
   })
   .use(
     new Router('/api/v1')
-      .post('/echo', (ctx) => {
-        ctx.body = ctx.request.text();
+      .post('/echo', async (ctx) => {
+        ctx.body = await ctx.request.text();
       })
-      .post('/echo.json', (ctx) => {
-        ctx.body = ctx.request.json();
+      .post('/echo.json', async (ctx) => {
+        ctx.body = await ctx.request.json();
       })
       .handle()
   )

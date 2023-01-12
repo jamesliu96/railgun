@@ -1,8 +1,8 @@
 import { Context } from './context.ts';
 
-export type Empty = Promise<void> | void;
-export type Middleware = (ctx: Context, next: () => Empty) => Empty;
-export type ReducedMiddleware = (ctx: Context, next?: () => Empty) => Empty;
+type Next = () => Promise<void>;
+export type Middleware = (ctx: Context, next: Next) => Promise<void> | void;
+export type ReducedMiddleware = (ctx: Context, next?: Next) => Promise<void>;
 
 export const reduce =
   (middlewares: Middleware[]): ReducedMiddleware =>

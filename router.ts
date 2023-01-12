@@ -1,7 +1,7 @@
-import { Empty, Middleware, reduce } from './middleware.ts';
+import { Middleware, reduce } from './middleware.ts';
 import { Context } from './context.ts';
 
-enum Method {
+export enum Method {
   ALL = '*',
   GET = 'GET',
   POST = 'POST',
@@ -12,10 +12,13 @@ enum Method {
   HEAD = 'HEAD',
 }
 
-type RouteMatch = Record<string, string | undefined> & {
+export type RouteMatch = Record<string, string | undefined> & {
   $: string[];
 };
-type RouteHandler = (ctx: Context, match: RouteMatch) => Empty;
+export type RouteHandler = (
+  ctx: Context,
+  match: RouteMatch
+) => Promise<void> | void;
 
 export class Router {
   routes = new Map<string, Middleware>();
@@ -64,6 +67,13 @@ export class Router {
       }
       await next();
     });
+    return this;
+  }
+
+  unroute(method: string, path: string) {
+    method = method.toUpperCase();
+    const pathname = `${this.prefix}${path}`;
+    this.routes.delete(`${method} ${pathname}`);
     return this;
   }
 
