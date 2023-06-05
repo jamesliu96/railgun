@@ -1,6 +1,6 @@
 # railgun
 
-[![deno doc](https://doc.deno.land/badge.svg)](https://doc.deno.land/https/deno.land/x/railgun/mod.ts)
+[![deno doc](https://doc.deno.land/badge.svg)](https://deno.land/x/railgun)
 
 deno web server framework
 
