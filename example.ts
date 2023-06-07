@@ -41,8 +41,7 @@ await new Application()
         ctx.body = await Deno.open(await Deno.realPath('./README.md'));
       })
       .all('/ws', (ctx) => {
-        const { response, socket } = Deno.upgradeWebSocket(ctx.request);
-        ctx.response = response;
+        const socket = ctx.upgrade();
         socket.onopen = () => {
           socket.send('Hello World!');
         };

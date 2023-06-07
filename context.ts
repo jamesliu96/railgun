@@ -112,4 +112,10 @@ export class Context {
       headers: this.headers,
     });
   }
+
+  upgrade() {
+    const { response, socket } = Deno.upgradeWebSocket(this.request);
+    this.#response = response;
+    return socket;
+  }
 }
