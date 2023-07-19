@@ -11,9 +11,9 @@ import {
 
 type ContentType = Parameters<typeof contentType>[0];
 
-export class Context {
-  static #CONTENT_TYPE = 'content-type';
+const CONTENT_TYPE = 'content-type';
 
+export class Context {
   readonly URL;
   readonly cookies;
 
@@ -49,23 +49,20 @@ export class Context {
     deleteCookie(this.headers, name);
   }
   get contentType() {
-    return this.headers.get(Context.#CONTENT_TYPE) as ContentType;
+    return this.headers.get(CONTENT_TYPE) as ContentType;
   }
   set contentType(type) {
-    this.headers.set(Context.#CONTENT_TYPE, contentType(type) ?? type);
+    this.headers.set(CONTENT_TYPE, contentType(type) ?? type);
   }
   deleteContentType() {
-    this.headers.delete(Context.#CONTENT_TYPE);
+    this.headers.delete(CONTENT_TYPE);
   }
 
   body: unknown;
 
   #response?: Response;
   get response() {
-    if (this.#response) {
-      return this.#response;
-    }
-    return this.#render();
+    return this.#response ?? this.#render();
   }
   set response(response) {
     this.#response = response;

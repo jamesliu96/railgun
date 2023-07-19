@@ -5,6 +5,6 @@ export {
   getSetCookies,
   setCookie,
   deleteCookie,
-} from 'https://deno.land/std@0.193.0/http/mod.ts';
-export type { Cookie } from 'https://deno.land/std@0.193.0/http/mod.ts';
-export { contentType } from 'https://deno.land/std@0.193.0/media_types/mod.ts';
+} from 'https://deno.land/std@0.194.0/http/mod.ts';
+export type { Cookie } from 'https://deno.land/std@0.194.0/http/mod.ts';
+export { contentType } from 'https://deno.land/std@0.194.0/media_types/mod.ts';
