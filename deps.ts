@@ -1,10 +1,12 @@
 export {
-  Status,
-  STATUS_TEXT,
   getCookies,
   getSetCookies,
   setCookie,
   deleteCookie,
-} from 'https://deno.land/std@0.195.0/http/mod.ts';
-export type { Cookie } from 'https://deno.land/std@0.195.0/http/mod.ts';
-export { contentType } from 'https://deno.land/std@0.195.0/media_types/mod.ts';
+} from 'https://deno.land/std@0.208.0/http/mod.ts';
+export type { Cookie } from 'https://deno.land/std@0.208.0/http/mod.ts';
+export {
+  Status,
+  STATUS_TEXT,
+} from 'https://deno.land/std@0.208.0/http/status.ts';
+export { contentType } from 'https://deno.land/std@0.208.0/media_types/mod.ts';
