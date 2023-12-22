@@ -18,7 +18,7 @@ available features:
 import {
   Application,
   Router,
-  Status,
+  STATUS_CODE,
 } from 'https://deno.land/x/railgun/mod.ts';
 
 await new Application()
@@ -47,7 +47,7 @@ await new Application()
         ctx.body = `my name is ${decodeURIComponent(catName)}, meow! 🐱`;
       })
       .post('/teapot', (ctx) => {
-        ctx.status = Status.Teapot;
+        ctx.status = STATUS_CODE.Teapot;
       })
       .post('/search', async (ctx) => {
         ctx.body = new URLSearchParams({ search: await ctx.request.text() });

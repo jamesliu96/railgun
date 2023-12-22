@@ -1,4 +1,4 @@
-import { Status, STATUS_TEXT } from './deps.ts';
+import { STATUS_CODE, STATUS_TEXT } from './deps.ts';
 
 import { Middleware, ReducedMiddleware, reduce } from './middleware.ts';
 import { Context } from './context.ts';
@@ -71,8 +71,8 @@ export class Application {
       handlers?.onRespondError?.(err);
       requestEvent.respondWith(
         new Response(null, {
-          status: Status.InternalServerError,
-          statusText: STATUS_TEXT[Status.InternalServerError],
+          status: STATUS_CODE.InternalServerError,
+          statusText: STATUS_TEXT[STATUS_CODE.InternalServerError],
         })
       );
     }

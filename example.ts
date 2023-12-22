@@ -1,4 +1,4 @@
-import { Application, Router, Status } from './mod.ts';
+import { Application, Router, STATUS_CODE } from './mod.ts';
 
 await new Application()
   .use(async (ctx, next) => {
@@ -26,7 +26,7 @@ await new Application()
         ctx.body = `my name is ${decodeURIComponent(catName)}, meow! 🐱`;
       })
       .post('/teapot', (ctx) => {
-        ctx.status = Status.Teapot;
+        ctx.status = STATUS_CODE.Teapot;
       })
       .post('/search', async (ctx) => {
         ctx.body = new URLSearchParams({ search: await ctx.request.text() });

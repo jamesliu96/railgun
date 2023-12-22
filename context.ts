@@ -1,12 +1,14 @@
 import {
-  Status,
-  STATUS_TEXT,
-  contentType,
   getCookies,
   getSetCookies,
   setCookie,
   deleteCookie,
   Cookie,
+  STATUS_CODE,
+  STATUS_TEXT,
+  StatusCode,
+  StatusText,
+  contentType,
 } from './deps.ts';
 
 type ContentType = Parameters<typeof contentType>[0];
@@ -23,16 +25,16 @@ export class Context {
     this.cookies = new Map(Object.entries(getCookies(headers)));
   }
 
-  #status?: Status;
+  #status?: StatusCode;
   get status() {
-    return this.response.status as Status;
+    return this.response.status as StatusCode;
   }
   set status(status) {
     this.#status = status;
   }
-  #statusText?: string;
+  #statusText?: StatusText;
   get statusText() {
-    return this.response.statusText;
+    return this.response.statusText as StatusText;
   }
   set statusText(statusText) {
     this.#statusText = statusText;
@@ -100,8 +102,8 @@ export class Context {
     const status =
       this.#status ??
       (typeof body === 'undefined' || body === null
-        ? Status.NotFound
-        : Status.OK);
+        ? STATUS_CODE.NotFound
+        : STATUS_CODE.OK);
     const statusText = this.#statusText ?? STATUS_TEXT[status];
     return new Response(body, {
       status,
