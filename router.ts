@@ -78,10 +78,9 @@ export class Router {
   }
 
   handle(): Middleware {
-    const reduced = reduce([...this.routes.values()]);
     return async (ctx, next) => {
       await next();
-      await reduced(ctx);
+      await reduce([...this.routes.values()])(ctx);
     };
   }
 }

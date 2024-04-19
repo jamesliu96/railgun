@@ -23,19 +23,17 @@ export class Application {
   }
 
   get #handler(): Deno.ServeHandler {
-    const reduced = reduce([...this.middlewares]);
     return async (request, info) => {
       const ctx = new Context(request, info);
-      await reduced(ctx);
+      await reduce([...this.middlewares])(ctx);
       return ctx.response;
     };
   }
 
   get #handlerUnix(): Deno.ServeUnixHandler {
-    const reduced = reduce([...this.middlewares]);
     return async (request, info) => {
       const ctx = new Context(request, info);
-      await reduced(ctx);
+      await reduce([...this.middlewares])(ctx);
       return ctx.response;
     };
   }
