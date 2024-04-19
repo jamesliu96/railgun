@@ -25,12 +25,12 @@ export class Application {
     return this;
   }
 
-  listen(options: Parameters<typeof Deno.listen>[0], handlers?: Handlers) {
+  listen(options: Deno.ListenOptions, handlers?: Handlers) {
     return this.#listen(Deno.listen(options), handlers);
   }
 
   listenTls(
-    options: Parameters<typeof Deno.listenTls>[0],
+    options: Deno.ListenTlsOptions & Deno.TlsCertifiedKeyOptions,
     handlers?: Handlers
   ) {
     return this.#listen(Deno.listenTls(options), handlers);
@@ -53,6 +53,7 @@ export class Application {
   ) {
     try {
       handlers?.onServe?.(conn);
+      // deno-lint-ignore no-deprecated-deno-api
       for await (const requestEvent of Deno.serveHttp(conn))
         this.#respond(requestEvent, reduced, handlers);
     } catch (err) {
