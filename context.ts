@@ -19,7 +19,10 @@ export class Context {
   readonly URL;
   readonly cookies;
 
-  constructor(readonly request: Request) {
+  constructor(
+    readonly request: Request,
+    readonly info: Deno.ServeHandlerInfo | Deno.ServeUnixHandlerInfo
+  ) {
     const { url, headers } = request;
     this.URL = new URL(url);
     this.cookies = new Map(Object.entries(getCookies(headers)));

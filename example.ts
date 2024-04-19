@@ -1,6 +1,6 @@
 import { Application, Router, STATUS_CODE } from './mod.ts';
 
-await new Application()
+new Application()
   .use(async (ctx, next) => {
     const start = performance.now();
     await next();
@@ -63,13 +63,12 @@ await new Application()
       })
       .handle()
   )
-  .listen(
-    { port: 3000 },
-    {
-      onListen: (listener) => {
-        console.log(
-          `server starts listening at :${(listener.addr as Deno.NetAddr).port}`
-        );
-      },
-    }
-  );
+  .serve({
+    port: 3000,
+    onListen: ({ hostname, port }) => {
+      console.log(`server starts listening at ${hostname}:${port}`);
+    },
+    onError(error) {
+      return new Response(`${error}`);
+    },
+  });
