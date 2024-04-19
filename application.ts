@@ -25,11 +25,14 @@ export class Application {
     return this;
   }
 
-  listen(options: Deno.ListenOptions, handlers?: Handlers) {
+  listen(options: Parameters<typeof Deno.listen>[0], handlers?: Handlers) {
     return this.#listen(Deno.listen(options), handlers);
   }
 
-  listenTls(options: Deno.ListenTlsOptions, handlers?: Handlers) {
+  listenTls(
+    options: Parameters<typeof Deno.listenTls>[0],
+    handlers?: Handlers
+  ) {
     return this.#listen(Deno.listenTls(options), handlers);
   }
 
