@@ -19,9 +19,10 @@ import {
   Application,
   Router,
   STATUS_CODE,
+  STATUS_TEXT,
 } from 'https://deno.land/x/railgun/mod.ts';
 
-await new Application()
+new Application()
   .use(async (ctx, next) => {
     const start = performance.now();
     await next();
@@ -84,16 +85,18 @@ await new Application()
       })
       .handle()
   )
-  .listen(
-    { port: 3000 },
-    {
-      onListen: (listener) => {
-        console.log(
-          `server starts listening at :${(listener.addr as Deno.NetAddr).port}`
-        );
-      },
-    }
-  );
+  .serve({
+    port: 3000,
+    onListen: ({ port }) => {
+      console.log(`server starts listening at :${port}`);
+    },
+    onError(error) {
+      return new Response(`${error}`, {
+        status: STATUS_CODE.InternalServerError,
+        statusText: STATUS_TEXT[STATUS_CODE.InternalServerError],
+      });
+    },
+  });
 ```
 
 ```sh

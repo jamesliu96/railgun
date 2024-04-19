@@ -1,4 +1,4 @@
-import { Application, Router, STATUS_CODE } from './mod.ts';
+import { Application, Router, STATUS_CODE, STATUS_TEXT } from './mod.ts';
 
 new Application()
   .use(async (ctx, next) => {
@@ -65,10 +65,13 @@ new Application()
   )
   .serve({
     port: 3000,
-    onListen: ({ hostname, port }) => {
-      console.log(`server starts listening at ${hostname}:${port}`);
+    onListen: ({ port }) => {
+      console.log(`server starts listening at :${port}`);
     },
     onError(error) {
-      return new Response(`${error}`);
+      return new Response(`${error}`, {
+        status: STATUS_CODE.InternalServerError,
+        statusText: STATUS_TEXT[STATUS_CODE.InternalServerError],
+      });
     },
   });
